@@ -1,13 +1,20 @@
-FROM python:3.9
-
-RUN apt-get update && apt-get -y install tree
+# Stage 1: Builder
+FROM python:3.9-slim as builder
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc python3-dev
 
 WORKDIR /app
-
-# Install Python dependencies
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --user -r requirements.txt
 
-COPY . .
+# Stage 2: Runtime
+FROM python:3.9-slim
+WORKDIR /app
+COPY --from=builder /root/.local /root/.local
+COPY src/ .
 
-CMD ["sh", "/app/docker/unified/start.sh"]
+ENV PATH=/root/.local/bin:$PATH \
+    PYTHONPATH=/app \
+    PIP_NO_CACHE_DIR=1
+
+CMD ["flask", "run"]
